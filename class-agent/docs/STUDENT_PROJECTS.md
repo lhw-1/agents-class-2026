@@ -44,6 +44,7 @@ GITHUB_TOKEN=replace-with-protected-read-only-token
 GITHUB_ORGANIZATION=mitmedialab
 GITHUB_REPOSITORY_PREFIX=agents2026-
 GITHUB_EXCLUDED_REPOSITORIES=agents2026-test
+GITHUB_ROSTER_CACHE_TTL_SECONDS=300
 ```
 
 Prefer a GitHub App installation token or a fine-grained token restricted to the 26 repositories.
@@ -51,8 +52,12 @@ Grant only Metadata, Contents, Pull requests, Issues, Actions, and Pages read ac
 write or administration permissions. Keep the value in the protected server environment; never
 commit it. The API must be restarted after configuration changes.
 
-The adapter enumerates the real repositories at request time rather than maintaining a second
-mock roster. It uses repository `homepage` metadata first and GitHub Pages metadata when present.
+The adapter enumerates the real repositories rather than maintaining a second mock roster. To
+avoid repeating the same GitHub organization and Pages calls during a conversation, it keeps the
+resolved roster in process for the configured bounded TTL (five minutes by default). Set the TTL
+to `0` to disable caching. Repository summaries, trees, files, commits, branches, pull requests,
+issues, and workflow runs are never served from this roster cache and remain live GitHub reads.
+The adapter uses repository `homepage` metadata first and GitHub Pages metadata when present.
 Projects without either value remain listed with no deployed site until their metadata is fixed.
 Normal automated tests use an injected HTTP transport, while an explicit deployment check uses
 the real credential and GitHub API.

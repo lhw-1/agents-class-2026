@@ -214,6 +214,54 @@ def test_github_catalog_connects_to_real_api_shapes_and_excludes_test_repository
     assert len(requests) == 4
 
 
+def test_github_catalog_caches_only_the_project_roster_for_the_bounded_ttl() -> None:
+    requests: list[httpx.Request] = []
+    current_time = 100.0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/orgs/mitmedialab/repos":
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "name": "agents2026-ada",
+                        "homepage": "https://ada.example.edu",
+                        "has_pages": False,
+                    }
+                ],
+            )
+        if request.url.path == "/repos/mitmedialab/agents2026-ada":
+            return httpx.Response(
+                200,
+                json={"name": "agents2026-ada", "default_branch": "main"},
+            )
+        raise AssertionError(f"unexpected request: {request.url}")
+
+    catalog = GitHubStudentProjectCatalog(
+        "read-only-token",
+        organization="mitmedialab",
+        repository_prefix="agents2026-",
+        roster_cache_ttl_seconds=60,
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+        monotonic=lambda: current_time,
+    )
+
+    expected = [StudentProject("agents2026-ada", "https://ada.example.edu")]
+    assert catalog.list_projects() == expected
+    assert catalog.list_projects() == expected
+    assert len(requests) == 1
+
+    catalog.inspect_repository("agents2026-ada", "summary")
+    catalog.inspect_repository("agents2026-ada", "summary")
+    assert len(requests) == 3
+
+    current_time += 60
+    assert catalog.list_projects() == expected
+    assert len(requests) == 4
+
+
 def test_github_catalog_never_permits_other_org_repositories() -> None:
     catalog = GitHubStudentProjectCatalog(
         "read-only-token",

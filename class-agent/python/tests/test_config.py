@@ -29,6 +29,7 @@ def test_settings_accept_standard_openai_environment_without_exposing_secret() -
     assert settings.browser_max_sessions_per_principal == 2
     assert settings.anonymous_quotas_enabled is True
     assert settings.github_student_projects_enabled is False
+    assert settings.github_roster_cache_ttl_seconds == 300
     assert settings.github_token is None
     assert "test-secret-value" not in repr(settings)
     assert "test-brave-value" not in repr(settings)
@@ -45,6 +46,7 @@ def test_settings_load_read_only_github_student_project_scope_without_exposing_t
             "GITHUB_ORGANIZATION": "mitmedialab",
             "GITHUB_REPOSITORY_PREFIX": "agents2026-",
             "GITHUB_EXCLUDED_REPOSITORIES": "agents2026-test,agents2026-demo",
+            "GITHUB_ROSTER_CACHE_TTL_SECONDS": "120",
         }
     )
 
@@ -52,6 +54,7 @@ def test_settings_load_read_only_github_student_project_scope_without_exposing_t
     assert settings.github_token is not None
     assert settings.github_token.get_secret_value() == "github-secret"
     assert settings.github_excluded_repositories == ("agents2026-test", "agents2026-demo")
+    assert settings.github_roster_cache_ttl_seconds == 120
     assert "github-secret" not in repr(settings)
 
 

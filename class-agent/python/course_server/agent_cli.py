@@ -155,6 +155,7 @@ def build_runtime(
             organization=settings.github_organization,
             repository_prefix=settings.github_repository_prefix,
             excluded_repositories=settings.github_excluded_repositories,
+            roster_cache_ttl_seconds=settings.github_roster_cache_ttl_seconds,
         )
     executable_tools: list[ExecutableTool] = [
         CourseReadSyllabusTool(course_resources),

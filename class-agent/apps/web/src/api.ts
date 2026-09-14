@@ -404,6 +404,8 @@ const RESOURCE_ACTIVITY_LABELS: Record<string, string> = {
 const TOOL_ACTIVITY_LABELS: Record<string, string> = {
   "course.get_application": "Reading application information",
   "course.get_schedule": "Reading course schedule",
+  "course.inspect_student_site": "Inspecting deployed student website",
+  "course.list_student_projects": "Listing student projects",
   "course.list_private_resources": "Checking private course resources",
   "course.read_private_resource": "Reading private course information",
   "course.read_public_file": "Reading course information",
@@ -415,6 +417,7 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
   "instructor.inspect_application_images": "Inspecting application images",
   "instructor.list_applications": "Listing course applications",
   "instructor.read_application": "Reading course application",
+  "staff.inspect_student_repository": "Inspecting student repository",
   "web.search": "Searching the public web",
   "web.search_images": "Searching public images",
   "web.inspect_images": "Inspecting public images",

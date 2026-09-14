@@ -73,6 +73,10 @@ class ListStudentProjectsTool:
     id = LIST_STUDENT_PROJECTS_TOOL_ID
     description = (
         "List the real course student projects and their deployed public website URLs. "
+        "Use this first when a course member asks about a student or project by name and "
+        "the exact agents2026-* project identifier or deployed URL is not yet known. Once "
+        "the project is identified, continue with the appropriate site or repository "
+        "inspection tool instead of searching general course resources. "
         "Available only to authenticated course members. This does not expose "
         "repository source or GitHub development metadata."
     )
@@ -116,6 +120,8 @@ class InspectStudentSiteTool:
     description = (
         "Read what one student's deployed public website currently displays. Authenticated "
         "students, TAs, instructors, and admins may inspect any listed student site. Use the "
+        "exact project identifier returned by course.list_student_projects, and call this "
+        "directly for questions about what a student's live website shows. Use the "
         "returned site URL "
         "with browser.open when a live visual rendering is useful. This tool never returns "
         "repository source, commits, issues, or workflow metadata."
@@ -187,7 +193,11 @@ class InspectStudentRepositoryTool:
         "Inspect one real student GitHub repository as authorized course staff. Read summary, "
         "tree, one "
         "UTF-8 file, commits, branches, pull requests, issues, or workflow runs. Use several "
-        "focused calls when assessing current work or debugging evidence. This read-only tool "
+        "focused calls when assessing current work or debugging evidence. For requests to tell "
+        "course staff about a named student's work, use the exact agents2026-* "
+        "project identifier and inspect the repository directly; begin with summary or tree, "
+        "then read only relevant files. Do not substitute general course-resource searches for "
+        "repository inspection. This read-only tool "
         "cannot access secrets, settings, collaborators, or perform GitHub writes."
     )
     input_schema: ClassVar[dict[str, JsonValue]] = {

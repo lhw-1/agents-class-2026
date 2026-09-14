@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import re
+import threading
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -94,8 +95,10 @@ class GitHubStudentProjectCatalog:
         repository_prefix: str,
         excluded_repositories: tuple[str, ...] = (),
         timeout_seconds: float = 10.0,
+        roster_cache_ttl_seconds: float = 300.0,
         transport: httpx.BaseTransport | None = None,
         sleep: Callable[[float], None] = time.sleep,
+        monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         if not token.strip() or "\n" in token or "\r" in token:
             raise ValueError("GitHub token must be a non-empty single line")
@@ -108,10 +111,28 @@ class GitHubStudentProjectCatalog:
         self._repository_prefix = repository_prefix
         self._excluded_repositories = frozenset(excluded_repositories)
         self._timeout_seconds = timeout_seconds
+        if roster_cache_ttl_seconds < 0:
+            raise ValueError("Roster cache TTL cannot be negative")
+        self._roster_cache_ttl_seconds = roster_cache_ttl_seconds
         self._transport = transport
         self._sleep = sleep
+        self._monotonic = monotonic
+        self._roster_cache: tuple[StudentProject, ...] | None = None
+        self._roster_cache_expires_at = 0.0
+        self._roster_cache_lock = threading.Lock()
 
     def list_projects(self) -> list[StudentProject]:
+        with self._roster_cache_lock:
+            now = self._monotonic()
+            if self._roster_cache is not None and now < self._roster_cache_expires_at:
+                return list(self._roster_cache)
+            projects = self._fetch_projects()
+            if self._roster_cache_ttl_seconds > 0:
+                self._roster_cache = tuple(projects)
+                self._roster_cache_expires_at = self._monotonic() + self._roster_cache_ttl_seconds
+            return list(projects)
+
+    def _fetch_projects(self) -> list[StudentProject]:
         repositories: list[object] = []
         for page in range(1, _MAX_REPOSITORY_PAGES + 1):
             raw_repositories = self._request_json(

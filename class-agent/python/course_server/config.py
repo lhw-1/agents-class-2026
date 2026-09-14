@@ -140,6 +140,7 @@ class AgentSettings(BaseModel):
     github_organization: str = Field(default="mitmedialab", pattern=r"^[A-Za-z0-9_.-]{1,100}$")
     github_repository_prefix: str = Field(default="agents2026-", pattern=r"^[A-Za-z0-9_.-]{1,100}$")
     github_excluded_repositories: tuple[str, ...] = ("agents2026-test",)
+    github_roster_cache_ttl_seconds: int = Field(default=300, ge=0, le=3_600)
 
     @classmethod
     def from_environment(
@@ -299,4 +300,7 @@ class AgentSettings(BaseModel):
             github_organization=github_organization,
             github_repository_prefix=github_repository_prefix,
             github_excluded_repositories=github_excluded_repositories,
+            github_roster_cache_ttl_seconds=int(
+                values.get("GITHUB_ROSTER_CACHE_TTL_SECONDS", "300")
+            ),
         )
