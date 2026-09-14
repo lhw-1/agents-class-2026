@@ -43,9 +43,9 @@ instructor resources and private application-review tools allow only `instructor
 admin do not inherit either audience. Direct content and asset routes apply the same policy
 and return `404` for unauthorized resources.
 
-When the optional student-project integration is configured, authenticated students and
-instructors receive the deployed-site tools for every course project. Only the exact instructor
-role receives the repository inspection tool. Anonymous, TA, and admin principals receive none of
+When the optional student-project integration is configured, every authenticated course role
+receives the deployed-site tools for every course project. TA, instructor, and admin roles also
+receive the repository inspection tool; students do not. Anonymous principals receive none of
 these tools. Execution re-checks the same trusted principal, and the configured organization,
 repository prefix, and exclusions are never accepted as model arguments. See
 [STUDENT_PROJECTS.md](STUDENT_PROJECTS.md).

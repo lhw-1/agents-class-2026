@@ -98,21 +98,21 @@ def test_course_members_list_and_inspect_every_deployed_student_site() -> None:
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("role", [None, "ta", "admin"])
+@pytest.mark.parametrize("role", [None])
 def test_student_project_sites_reject_unauthorized_roles(
-    role: Literal["ta", "admin"] | None,
+    role: None,
 ) -> None:
     async def scenario() -> None:
-        with pytest.raises(ToolValidationError, match="student or instructor"):
+        with pytest.raises(ToolValidationError, match="course-member"):
             await ListStudentProjectsTool(FakeStudentProjects()).execute({}, context(role))
 
     asyncio.run(scenario())
 
 
-def test_repository_inspection_requires_instructor_and_validates_arguments() -> None:
+def test_repository_inspection_requires_staff_and_validates_arguments() -> None:
     async def scenario() -> None:
         tool = InspectStudentRepositoryTool(FakeStudentProjects())
-        with pytest.raises(ToolValidationError, match="instructor"):
+        with pytest.raises(ToolValidationError, match="TA, instructor, or admin"):
             await tool.execute(
                 {"project_id": "agents2026-ada", "view": "summary"},
                 context("student"),
@@ -129,6 +129,13 @@ def test_repository_inspection_requires_instructor_and_validates_arguments() -> 
         assert isinstance(result.content, dict)
         assert result.content["path"] == "src/App.tsx"
         assert result.storage_policy == "server_summary"
+        for role in ("ta", "admin"):
+            staff_result = await tool.execute(
+                {"project_id": "agents2026-ada", "view": "summary"},
+                context(role),
+            )
+            assert isinstance(staff_result.content, dict)
+            assert staff_result.content["view"] == "summary"
 
     asyncio.run(scenario())
 

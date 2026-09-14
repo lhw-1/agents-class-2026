@@ -107,10 +107,10 @@ own dedicated Gmail or Outlook mailbox, staff list, and provider credentials; se
 [docs/EMAIL.md](docs/EMAIL.md).
 
 An optional read-only GitHub integration connects the agent directly to the real
-`mitmedialab/agents2026-*` course repositories. Authenticated students and instructors can inspect
-every deployed student website; only instructors receive repository source and development
-metadata tools. The credential remains server-side and the configured organization, prefix, and
-exclusions are enforced in platform code. See
+`mitmedialab/agents2026-*` course repositories. All authenticated course roles can inspect every
+deployed student website; TAs, instructors, and admins also receive repository source and
+development metadata tools. The credential remains server-side and the configured organization,
+prefix, and exclusions are enforced in platform code. See
 [docs/STUDENT_PROJECTS.md](docs/STUDENT_PROJECTS.md).
 
 Staff-published FAQ knowledge is kept separately from maintained course files in one local,

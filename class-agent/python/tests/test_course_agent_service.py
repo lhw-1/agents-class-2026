@@ -194,7 +194,7 @@ def test_staff_email_tool_requires_enabled_mail_and_exact_student_role() -> None
     assert ASK_TA_TOOL_ID not in enabled.authorize(authenticated_principal("admin")).tool_ids
 
 
-def test_student_project_tools_require_exact_authenticated_course_roles() -> None:
+def test_student_project_tools_grant_sites_to_members_and_repositories_to_staff() -> None:
     policy = CourseCapabilityPolicy(student_projects_enabled=True)
 
     public = policy.authorize(public_principal())
@@ -208,8 +208,10 @@ def test_student_project_tools_require_exact_authenticated_course_roles() -> Non
     assert INSPECT_STUDENT_REPOSITORY_TOOL_ID not in student.tool_ids
     assert set(STUDENT_PROJECT_TOOL_IDS) <= set(instructor.tool_ids)
     assert INSPECT_STUDENT_REPOSITORY_TOOL_ID in instructor.tool_ids
-    assert not set(STUDENT_PROJECT_TOOL_IDS) & set(ta.tool_ids)
-    assert not set(STUDENT_PROJECT_TOOL_IDS) & set(admin.tool_ids)
+    assert set(STUDENT_PROJECT_TOOL_IDS) <= set(ta.tool_ids)
+    assert INSPECT_STUDENT_REPOSITORY_TOOL_ID in ta.tool_ids
+    assert set(STUDENT_PROJECT_TOOL_IDS) <= set(admin.tool_ids)
+    assert INSPECT_STUDENT_REPOSITORY_TOOL_ID in admin.tool_ids
 
 
 def test_course_agent_discloses_only_login_authorized_skill_metadata() -> None:

@@ -2554,14 +2554,14 @@ class CourseCapabilityPolicy:
             STUDENT_PROJECT_TOOL_IDS
             if self._student_projects_enabled
             and principal.authenticated
-            and ({"student", "instructor"} & set(principal.roles))
+            and ({"student", "ta", "instructor", "admin"} & set(principal.roles))
             else ()
         )
-        instructor_project_tools = (
+        staff_project_tools = (
             (INSPECT_STUDENT_REPOSITORY_TOOL_ID,)
             if self._student_projects_enabled
             and principal.authenticated
-            and "instructor" in principal.roles
+            and ({"ta", "instructor", "admin"} & set(principal.roles))
             else ()
         )
         return AuthorizedCapabilities(
@@ -2587,7 +2587,7 @@ class CourseCapabilityPolicy:
                 ),
                 *instructor_tools,
                 *course_member_project_tools,
-                *instructor_project_tools,
+                *staff_project_tools,
                 *(BROWSER_TOOL_IDS if self._browser_enabled else ()),
                 *(
                     (ASK_TA_TOOL_ID,)

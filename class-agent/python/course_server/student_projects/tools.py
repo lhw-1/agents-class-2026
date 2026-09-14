@@ -44,13 +44,15 @@ _REPOSITORY_VIEWS = (
 
 
 def _require_course_member(principal: PrincipalContext) -> None:
-    if not principal.authenticated or not ({"student", "instructor"} & set(principal.roles)):
-        raise ToolValidationError("An active student or instructor login is required.")
+    if not principal.authenticated or not (
+        {"student", "ta", "instructor", "admin"} & set(principal.roles)
+    ):
+        raise ToolValidationError("An active course-member login is required.")
 
 
-def _require_instructor(principal: PrincipalContext) -> None:
-    if not principal.authenticated or "instructor" not in principal.roles:
-        raise ToolValidationError("An active instructor login is required.")
+def _require_course_staff(principal: PrincipalContext) -> None:
+    if not principal.authenticated or not ({"ta", "instructor", "admin"} & set(principal.roles)):
+        raise ToolValidationError("An active TA, instructor, or admin login is required.")
 
 
 def _project_id(arguments: Mapping[str, JsonValue], allowed: frozenset[str]) -> str:
@@ -71,7 +73,7 @@ class ListStudentProjectsTool:
     id = LIST_STUDENT_PROJECTS_TOOL_ID
     description = (
         "List the real course student projects and their deployed public website URLs. "
-        "Available only to authenticated students and instructors. This does not expose "
+        "Available only to authenticated course members. This does not expose "
         "repository source or GitHub development metadata."
     )
     input_schema: ClassVar[dict[str, JsonValue]] = {
@@ -113,7 +115,8 @@ class InspectStudentSiteTool:
     id = INSPECT_STUDENT_SITE_TOOL_ID
     description = (
         "Read what one student's deployed public website currently displays. Authenticated "
-        "students and instructors may inspect any listed student site. Use the returned site URL "
+        "students, TAs, instructors, and admins may inspect any listed student site. Use the "
+        "returned site URL "
         "with browser.open when a live visual rendering is useful. This tool never returns "
         "repository source, commits, issues, or workflow metadata."
     )
@@ -181,7 +184,8 @@ class InspectStudentSiteTool:
 class InspectStudentRepositoryTool:
     id = INSPECT_STUDENT_REPOSITORY_TOOL_ID
     description = (
-        "Inspect one real student GitHub repository as an instructor. Read summary, tree, one "
+        "Inspect one real student GitHub repository as authorized course staff. Read summary, "
+        "tree, one "
         "UTF-8 file, commits, branches, pull requests, issues, or workflow runs. Use several "
         "focused calls when assessing current work or debugging evidence. This read-only tool "
         "cannot access secrets, settings, collaborators, or perform GitHub writes."
@@ -220,7 +224,7 @@ class InspectStudentRepositoryTool:
         arguments: Mapping[str, JsonValue],
         context: ToolExecutionContext,
     ) -> ToolExecutionResult:
-        _require_instructor(context.principal)
+        _require_course_staff(context.principal)
         project_id = _project_id(
             arguments,
             frozenset({"project_id", "view", "path", "ref"}),

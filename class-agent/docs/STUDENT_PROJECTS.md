@@ -14,7 +14,8 @@ Platform code filters tools before the model sees them and each tool checks the 
 | Anonymous | No | No |
 | Student | All course project sites | No |
 | Instructor | All course project sites | All course repositories |
-| TA or admin | No | No |
+| TA | All course project sites | All course repositories |
+| Admin | All course project sites | All course repositories |
 
 The repository boundary is the configured organization and prefix, minus explicit exclusions.
 For this deployment that is `mitmedialab/agents2026-*` except `agents2026-test`. A model-supplied
@@ -25,7 +26,8 @@ organization, arbitrary repository URL, user ID, or role cannot widen that scope
 commits, issues, or workflow information. The agent can pass the returned URL to the existing
 isolated `browser.open` tool for a rendered visual inspection.
 
-`instructor.inspect_student_repository` supports focused, bounded reads of repository summary,
+`staff.inspect_student_repository` is available to TAs, instructors, and admins. It supports
+focused, bounded reads of repository summary,
 tree, UTF-8 files, commits, branches, pull requests, issues, and Actions workflow runs. It cannot
 read secrets, repository settings, collaborators, or perform writes. Full fetched results are
 ephemeral to the current model turn; durable history stores only a generic completion summary.
