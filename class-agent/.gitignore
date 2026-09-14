@@ -1,5 +1,6 @@
 .DS_Store
 .env
+.env.github
 .env.mail
 .venv/
 .pytest_cache/
