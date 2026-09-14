@@ -41,6 +41,10 @@ from course_server.course_application import (
     SCHOOL_OPTIONS,
     CourseApplication,
 )
+from course_server.student_project_tool_ids import (
+    INSPECT_STUDENT_REPOSITORY_TOOL_ID,
+    STUDENT_PROJECT_TOOL_IDS,
+)
 from course_server.uploads import (
     APPLICATION_PHOTO_MEDIA_TYPES,
     MAX_UPLOAD_BYTES,
@@ -2505,10 +2509,12 @@ class CourseCapabilityPolicy:
         *,
         browser_enabled: bool = False,
         mail_enabled: bool = False,
+        student_projects_enabled: bool = False,
     ) -> None:
         self._resources = resources
         self._browser_enabled = browser_enabled
         self._mail_enabled = mail_enabled
+        self._student_projects_enabled = student_projects_enabled
 
     def authorize(self, principal: PrincipalContext) -> AuthorizedCapabilities:
         if self._resources is None:
@@ -2544,6 +2550,20 @@ class CourseCapabilityPolicy:
             if principal.authenticated and "instructor" in principal.roles
             else ()
         )
+        course_member_project_tools = (
+            STUDENT_PROJECT_TOOL_IDS
+            if self._student_projects_enabled
+            and principal.authenticated
+            and ({"student", "instructor"} & set(principal.roles))
+            else ()
+        )
+        instructor_project_tools = (
+            (INSPECT_STUDENT_REPOSITORY_TOOL_ID,)
+            if self._student_projects_enabled
+            and principal.authenticated
+            and "instructor" in principal.roles
+            else ()
+        )
         return AuthorizedCapabilities(
             tool_ids=(
                 READ_SYLLABUS_TOOL_ID,
@@ -2566,6 +2586,8 @@ class CourseCapabilityPolicy:
                     else ()
                 ),
                 *instructor_tools,
+                *course_member_project_tools,
+                *instructor_project_tools,
                 *(BROWSER_TOOL_IDS if self._browser_enabled else ()),
                 *(
                     (ASK_TA_TOOL_ID,)

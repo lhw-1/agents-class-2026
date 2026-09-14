@@ -787,6 +787,7 @@ def create_app(
                     course_resources,
                     browser_enabled=browser_service is not None,
                     mail_enabled=ta_question_service is not None,
+                    student_projects_enabled=(resolved_settings.github_student_projects_enabled),
                 ),
                 skills=skills,
                 workspace_registry=component_registry,

@@ -49,6 +49,9 @@ course.search_faq
 course.search
 course.submit_application
 course.ask_ta (configured, exact student role only)
+course.list_student_projects (configured, students and instructors only)
+course.inspect_student_site (configured, students and instructors only)
+instructor.inspect_student_repository (configured, instructors only)
 web.search
 web.search_images
 web.visit
@@ -69,6 +72,13 @@ trusted context names an unregistered tool. Read and search tools independently 
 work to authorized resource URIs during execution. Model-controlled input cannot select a
 filesystem path or applicant directory. The schedule tool identifies its source as
 provisional.
+
+The optional GitHub student-project tools use the same pre-model and execution-time checks.
+Students can list and inspect every deployed course website but never receive repository source or
+development metadata. Instructors can make bounded, read-only calls across the configured course
+repository collection. GitHub results remain ephemeral to the current turn and durable events keep
+only completion summaries; the token remains inside the provider adapter. See
+[STUDENT_PROJECTS.md](STUDENT_PROJECTS.md).
 
 Skills use standard `SKILL.md` directories with optional Markdown files under
 `references/`. The repository-owned `skills/registry.json` is a separate authorization

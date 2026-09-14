@@ -43,6 +43,13 @@ instructor resources and private application-review tools allow only `instructor
 admin do not inherit either audience. Direct content and asset routes apply the same policy
 and return `404` for unauthorized resources.
 
+When the optional student-project integration is configured, authenticated students and
+instructors receive the deployed-site tools for every course project. Only the exact instructor
+role receives the repository inspection tool. Anonymous, TA, and admin principals receive none of
+these tools. Execution re-checks the same trusted principal, and the configured organization,
+repository prefix, and exclusions are never accepted as model arguments. See
+[STUDENT_PROJECTS.md](STUDENT_PROJECTS.md).
+
 Agent Skill metadata follows the same pre-model boundary. Public skills are visible to every
 principal, authenticated skills only after login, student skills to students and instructors,
 and instructor skills only to instructors. TA and admin do not inherit student or instructor

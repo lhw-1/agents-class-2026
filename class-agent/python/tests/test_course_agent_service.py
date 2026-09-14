@@ -40,6 +40,10 @@ from course_server.agent import (
 from course_server.agent_cli import _safe_failure_message, run_cli_turn
 from course_server.auth import InMemoryAuthStore
 from course_server.browser import BROWSER_TOOL_IDS
+from course_server.student_projects import (
+    INSPECT_STUDENT_REPOSITORY_TOOL_ID,
+    STUDENT_PROJECT_TOOL_IDS,
+)
 from course_server.uploads import FileTemporaryUploadStore
 
 
@@ -188,6 +192,24 @@ def test_staff_email_tool_requires_enabled_mail_and_exact_student_role() -> None
     assert ASK_TA_TOOL_ID not in enabled.authorize(authenticated_principal("ta")).tool_ids
     assert ASK_TA_TOOL_ID not in enabled.authorize(authenticated_principal("instructor")).tool_ids
     assert ASK_TA_TOOL_ID not in enabled.authorize(authenticated_principal("admin")).tool_ids
+
+
+def test_student_project_tools_require_exact_authenticated_course_roles() -> None:
+    policy = CourseCapabilityPolicy(student_projects_enabled=True)
+
+    public = policy.authorize(public_principal())
+    student = policy.authorize(authenticated_principal("student"))
+    instructor = policy.authorize(authenticated_principal("instructor"))
+    ta = policy.authorize(authenticated_principal("ta"))
+    admin = policy.authorize(authenticated_principal("admin"))
+
+    assert not set(STUDENT_PROJECT_TOOL_IDS) & set(public.tool_ids)
+    assert set(STUDENT_PROJECT_TOOL_IDS) <= set(student.tool_ids)
+    assert INSPECT_STUDENT_REPOSITORY_TOOL_ID not in student.tool_ids
+    assert set(STUDENT_PROJECT_TOOL_IDS) <= set(instructor.tool_ids)
+    assert INSPECT_STUDENT_REPOSITORY_TOOL_ID in instructor.tool_ids
+    assert not set(STUDENT_PROJECT_TOOL_IDS) & set(ta.tool_ids)
+    assert not set(STUDENT_PROJECT_TOOL_IDS) & set(admin.tool_ids)
 
 
 def test_course_agent_discloses_only_login_authorized_skill_metadata() -> None:

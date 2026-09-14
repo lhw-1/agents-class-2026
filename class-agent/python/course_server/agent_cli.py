@@ -61,6 +61,13 @@ from course_server.mail import CourseAskTATool, TAQuestionService
 from course_server.migrations import apply_migrations
 from course_server.postgres.auth_store import PostgresAuthStore, create_auth_pool
 from course_server.postgres.conversation_store import PostgresConversationStore
+from course_server.student_projects import (
+    GitHubStudentProjectCatalog,
+    InspectStudentRepositoryTool,
+    InspectStudentSiteTool,
+    ListStudentProjectsTool,
+    StudentProjectCatalog,
+)
 from course_server.uploads import (
     FileTemporaryUploadStore,
     TemporaryUploadStore,
@@ -125,6 +132,7 @@ def build_runtime(
     browser: BrowserSessionService | None = None,
     skills: SkillCatalog | None = None,
     ta_questions: TAQuestionService | None = None,
+    student_projects: StudentProjectCatalog | None = None,
 ) -> SmolagentsRuntime:
     course_resources = (
         resources
@@ -138,6 +146,16 @@ def build_runtime(
         uploads if uploads is not None else FileTemporaryUploadStore(settings.upload_data_path)
     )
     component_registry = components or load_component_registry()
+    project_catalog = student_projects
+    if project_catalog is None and settings.github_student_projects_enabled:
+        if settings.github_token is None:
+            raise ConfigurationError("GitHub student projects are enabled without a token")
+        project_catalog = GitHubStudentProjectCatalog(
+            settings.github_token.get_secret_value(),
+            organization=settings.github_organization,
+            repository_prefix=settings.github_repository_prefix,
+            excluded_repositories=settings.github_excluded_repositories,
+        )
     executable_tools: list[ExecutableTool] = [
         CourseReadSyllabusTool(course_resources),
         CourseReadPublicFileTool(course_resources),
@@ -206,6 +224,14 @@ def build_runtime(
         executable_tools.extend([ReadSkillTool(skills), ReadSkillReferenceTool(skills)])
     if ta_questions is not None:
         executable_tools.append(CourseAskTATool(ta_questions))
+    if project_catalog is not None:
+        executable_tools.extend(
+            [
+                ListStudentProjectsTool(project_catalog),
+                InspectStudentSiteTool(project_catalog, fetch_public_webpage),
+                InspectStudentRepositoryTool(project_catalog),
+            ]
+        )
     tools = ToolCatalog(executable_tools)
     provider = OpenAIModelProvider(
         model_id=settings.model_id,
@@ -241,7 +267,10 @@ async def _run_postgres_turn(
             runtime=build_runtime(settings, resources=course_resources, skills=skills),
             auth_store=PostgresAuthStore(pool),
             conversation_store=PostgresConversationStore(pool),
-            capability_policy=CourseCapabilityPolicy(course_resources),
+            capability_policy=CourseCapabilityPolicy(
+                course_resources,
+                student_projects_enabled=settings.github_student_projects_enabled,
+            ),
             skills=skills,
         )
     finally:

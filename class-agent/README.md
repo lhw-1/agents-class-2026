@@ -106,6 +106,13 @@ students, while `PRIVATE` keeps it student-specific. Configure each cloned deplo
 own dedicated Gmail or Outlook mailbox, staff list, and provider credentials; see
 [docs/EMAIL.md](docs/EMAIL.md).
 
+An optional read-only GitHub integration connects the agent directly to the real
+`mitmedialab/agents2026-*` course repositories. Authenticated students and instructors can inspect
+every deployed student website; only instructors receive repository source and development
+metadata tools. The credential remains server-side and the configured organization, prefix, and
+exclusions are enforced in platform code. See
+[docs/STUDENT_PROJECTS.md](docs/STUDENT_PROJECTS.md).
+
 Staff-published FAQ knowledge is kept separately from maintained course files in one local,
 versioned JSON file at `var/course-knowledge/published-faq.json`. The mail worker updates it
 automatically after an authorized `PUBLISH` reply, and the Course Agent reads it through
@@ -158,7 +165,7 @@ var/course-knowledge/     local generated public FAQ knowledge
 docs/                    architecture and versioning decisions
 ```
 
-See [docs/API.md](docs/API.md), [docs/WORKSPACE.md](docs/WORKSPACE.md), [docs/RUNTIME.md](docs/RUNTIME.md), [docs/AUTH.md](docs/AUTH.md), and [docs/STORAGE.md](docs/STORAGE.md) for behavior and operational guidance. The default tests use a scripted model and do not spend OpenAI credits.
+See [docs/API.md](docs/API.md), [docs/WORKSPACE.md](docs/WORKSPACE.md), [docs/RUNTIME.md](docs/RUNTIME.md), [docs/AUTH.md](docs/AUTH.md), [docs/STUDENT_PROJECTS.md](docs/STUDENT_PROJECTS.md), and [docs/STORAGE.md](docs/STORAGE.md) for behavior and operational guidance. The default tests use a scripted model and do not spend OpenAI credits.
 
 ## Production hardening
 
