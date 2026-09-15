@@ -39,7 +39,8 @@ Authenticated identity, display information, and roles are loaded from the datab
 
 Role-scoped course resources are filtered from this trusted principal before their URIs or
 tools reach the model. Student resources allow the `student` and `instructor` roles;
-instructor resources and private application-review tools allow only `instructor`. TA and
+instructor resources allow only `instructor`. Application-review tools also allow students,
+restricted by the private accepted-application UUID registry (see [STORAGE.md](STORAGE.md)). TA and
 admin do not inherit either audience. Direct content and asset routes apply the same policy
 and return `404` for unauthorized resources.
 

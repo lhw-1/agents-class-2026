@@ -173,9 +173,15 @@ def test_course_policy_filters_role_scoped_resources_and_instructor_tools(
     assert ta.resource_uris == admin.resource_uris == ("course://public",)
     assert LIST_PRIVATE_RESOURCES_TOOL_ID in student.tool_ids
     assert READ_PRIVATE_RESOURCE_TOOL_ID in student.tool_ids
-    assert INSTRUCTOR_LIST_APPLICATIONS_TOOL_ID not in student.tool_ids
-    assert INSTRUCTOR_READ_APPLICATION_TOOL_ID not in student.tool_ids
-    assert INSTRUCTOR_INSPECT_APPLICATION_IMAGES_TOOL_ID not in student.tool_ids
+    assert INSTRUCTOR_LIST_APPLICATIONS_TOOL_ID in student.tool_ids
+    for denied in (public, ta, admin):
+        assert INSTRUCTOR_LIST_APPLICATIONS_TOOL_ID not in denied.tool_ids
+    assert INSTRUCTOR_READ_APPLICATION_TOOL_ID in student.tool_ids
+    for denied in (public, ta, admin):
+        assert INSTRUCTOR_READ_APPLICATION_TOOL_ID not in denied.tool_ids
+    assert INSTRUCTOR_INSPECT_APPLICATION_IMAGES_TOOL_ID in student.tool_ids
+    for denied in (public, ta, admin):
+        assert INSTRUCTOR_INSPECT_APPLICATION_IMAGES_TOOL_ID not in denied.tool_ids
     assert INSTRUCTOR_LIST_APPLICATIONS_TOOL_ID in instructor.tool_ids
     assert INSTRUCTOR_READ_APPLICATION_TOOL_ID in instructor.tool_ids
     assert INSTRUCTOR_INSPECT_APPLICATION_IMAGES_TOOL_ID in instructor.tool_ids

@@ -45,6 +45,7 @@ from course_server.anonymous_quotas import (
     QuotaCharge,
     QuotaMetric,
 )
+from course_server.application_access import ApplicationAccessPolicy
 from course_server.application_draft import (
     APPLICATION_DRAFT_FIELDS,
     ApplicationDraftEditError,
@@ -53,6 +54,7 @@ from course_server.application_draft import (
     normalized_application_draft_props,
     updated_application_draft_from_user,
 )
+from course_server.application_roster import initialize_student_application_access
 from course_server.auth import (
     AuthenticationService,
     InvalidCredentials,
@@ -231,6 +233,9 @@ class AppServices:
     authentication: AuthenticationService
     agent: CourseAgentService
     conversations: ConversationStore
+    application_access: ApplicationAccessPolicy = dataclass_field(
+        default_factory=ApplicationAccessPolicy
+    )
     applicants: ApplicantStore | None = None
     course_resources: CourseResourceCatalog | None = None
     uploads: TemporaryUploadStore | None = None
@@ -745,6 +750,9 @@ def create_app(
             else None
         )
         applicant_store = FileApplicantStore(resolved_settings.applicant_data_path)
+        await initialize_student_application_access(
+            applicant_store, resolved_settings.applicant_data_path
+        )
         course_resources = PublishedFaqResourceCatalog(
             FileResourceProvider.from_registry(
                 protected_data_path=resolved_settings.course_data_path
@@ -795,6 +803,9 @@ def create_app(
             ),
             conversations=conversation_store,
             applicants=applicant_store,
+            application_access=ApplicationAccessPolicy(
+                resolved_settings.applicant_data_path / "student-access.json"
+            ),
             course_resources=course_resources,
             uploads=upload_store,
             workspace_registry=component_registry,
@@ -1023,11 +1034,12 @@ def create_app(
         state = _get_app_state(request)
         assert state.services is not None
         applicants = state.services.applicants
-        if applicants is None or not principal.authenticated or "instructor" not in principal.roles:
+        if applicants is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
         try:
+            state.services.application_access.require(principal, application_id)
             photo = await applicants.read_application_photo(application_id)
-        except (ResourceNotFound, ToolValidationError) as error:
+        except (ResourceNotFound, ToolValidationError, PermissionError) as error:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="not found",

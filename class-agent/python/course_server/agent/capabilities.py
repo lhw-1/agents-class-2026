@@ -34,6 +34,7 @@ from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
 from agent_core import PrincipalContext
+from course_server.application_access import ApplicationAccessPolicy
 from course_server.browser.constants import BROWSER_TOOL_IDS
 from course_server.course_application import (
     LISTENER_BUILD_OPTIONS,
@@ -2295,7 +2296,8 @@ class InstructorListApplicationsTool:
 
     id = INSTRUCTOR_LIST_APPLICATIONS_TOOL_ID
     description = (
-        "List submitted course applications available for instructor review. "
+        "List submitted course applications available to this login: all for instructors, "
+        "only shared accepted applicants for students. "
         "Returns application IDs and concise applicant metadata, never filesystem paths."
     )
     input_schema: ClassVar[dict[str, JsonValue]] = {
@@ -2304,8 +2306,11 @@ class InstructorListApplicationsTool:
         "additionalProperties": False,
     }
 
-    def __init__(self, applicants: ApplicantStore) -> None:
+    def __init__(
+        self, applicants: ApplicantStore, access: ApplicationAccessPolicy | None = None
+    ) -> None:
         self._applicants = applicants
+        self._access = access or ApplicationAccessPolicy()
 
     async def execute(
         self,
@@ -2314,8 +2319,33 @@ class InstructorListApplicationsTool:
     ) -> ToolExecutionResult:
         if arguments:
             raise ValueError("instructor.list_applications does not accept arguments")
-        _require_instructor(context.principal)
-        applications = await self._applicants.list_applications()
+        scope = self._access.scope(context.principal)
+        if scope is None:
+            applications = await self._applicants.list_applications()
+        else:
+            applications = []
+            # Do not enumerate or read unshared records even to construct the listing.
+            for application_id in sorted(scope, key=str):
+                try:
+                    record = await self._applicants.read_application(application_id)
+                except ResourceNotFound:
+                    continue
+                fields = record.get("application")
+                if not isinstance(fields, dict):
+                    raise ToolValidationError("A shared application is unavailable.")
+                applications.append(
+                    ApplicationSummary(
+                        application_id=application_id,
+                        submitted_at=str(record.get("submitted_at", "")),
+                        name=str(fields.get("name", "")),
+                        email=str(fields.get("email", "")),
+                        registration_status=(
+                            str(fields["registration_status"])
+                            if fields.get("registration_status") is not None
+                            else None
+                        ),
+                    )
+                )
         return ToolExecutionResult(
             content=[application.model_dump(mode="json") for application in applications],
             summary=f"Listed {len(applications)} private course applications.",
@@ -2329,9 +2359,10 @@ class InstructorReadApplicationTool:
     id = INSTRUCTOR_READ_APPLICATION_TOOL_ID
     redact_arguments_in_events = True
     description = (
-        "Read the complete structured contents of one submitted course application by the "
+        "Read an application authorized for this login (students: shared accepted applicants "
+        "only) by the "
         "application ID returned from instructor.list_applications. The representative photo "
-        "is reported as protected metadata. If the instructor explicitly asks about visible "
+        "is reported as protected metadata. If the user explicitly asks about visible "
         "image content, use instructor.inspect_application_images with the application ID."
     )
     input_schema: ClassVar[dict[str, JsonValue]] = {
@@ -2347,15 +2378,18 @@ class InstructorReadApplicationTool:
         "additionalProperties": False,
     }
 
-    def __init__(self, applicants: ApplicantStore) -> None:
+    def __init__(
+        self, applicants: ApplicantStore, access: ApplicationAccessPolicy | None = None
+    ) -> None:
         self._applicants = applicants
+        self._access = access or ApplicationAccessPolicy()
 
     async def execute(
         self,
         arguments: Mapping[str, JsonValue],
         context: ToolExecutionContext,
     ) -> ToolExecutionResult:
-        _require_instructor(context.principal)
+        self._access.scope(context.principal)
         _reject_unknown_arguments(arguments, frozenset({"application_id"}))
         try:
             application_id = UUID(
@@ -2364,7 +2398,21 @@ class InstructorReadApplicationTool:
         except ValueError as error:
             raise ToolValidationError("application_id must be a UUID.") from error
         try:
+            self._access.require(context.principal, application_id)
             application = await self._applicants.read_application(application_id)
+            if "instructor" not in context.principal.roles:
+                # Share submitted content, never internal identity/upload/storage metadata.
+                application = {
+                    key: value
+                    for key, value in application.items()
+                    if key
+                    in {"schema_version", "application_id", "submitted_at", "application", "photo"}
+                }
+                fields = application.get("application")
+                if isinstance(fields, dict):
+                    application["application"] = {
+                        key: value for key, value in fields.items() if key != "photo_upload_id"
+                    }
         except ResourceNotFound as error:
             raise ToolValidationError("The course application was not found.") from error
         return ToolExecutionResult(
@@ -2381,7 +2429,7 @@ class InstructorInspectApplicationImagesTool:
     redact_arguments_in_events = True
     description = (
         "Visually inspect one to four submitted application images only when the authenticated "
-        "instructor explicitly asks about their visible content. Use application IDs returned "
+        "user explicitly asks about their visible content. Use application IDs returned "
         "by instructor.list_applications. This sends the selected private images and inspection "
         "request to the configured multimodal model without provider-side storage. Each result "
         "includes an exact protected applicant:// image_uri that may be used as the url of a "
@@ -2403,7 +2451,7 @@ class InstructorInspectApplicationImagesTool:
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 1_000,
-                "description": "Neutral visual question requested by the instructor.",
+                "description": "Neutral visual question requested by the user.",
             },
         },
         "required": ["application_ids", "prompt"],
@@ -2414,16 +2462,18 @@ class InstructorInspectApplicationImagesTool:
         self,
         applicants: ApplicantStore,
         inspect: ApplicantImageInspectionRunner,
+        access: ApplicationAccessPolicy | None = None,
     ) -> None:
         self._applicants = applicants
         self._inspect = inspect
+        self._access = access or ApplicationAccessPolicy()
 
     async def execute(
         self,
         arguments: Mapping[str, JsonValue],
         context: ToolExecutionContext,
     ) -> ToolExecutionResult:
-        _require_instructor(context.principal)
+        self._access.scope(context.principal)
         _reject_unknown_arguments(arguments, frozenset({"application_ids", "prompt"}))
         raw_application_ids = arguments.get("application_ids")
         if (
@@ -2439,6 +2489,9 @@ class InstructorInspectApplicationImagesTool:
         except ValueError as error:
             raise ToolValidationError("application_ids must contain valid UUIDs.") from error
         prompt = _required_text_argument(arguments, "prompt", max_length=1_000)
+        # Authorize the entire batch before loading bytes or invoking the provider.
+        for application_id in application_ids:
+            self._access.require(context.principal, application_id)
         photos: list[ApplicationPhoto] = []
         try:
             for application_id in application_ids:
@@ -2547,7 +2600,7 @@ class CourseCapabilityPolicy:
                 INSTRUCTOR_READ_APPLICATION_TOOL_ID,
                 INSTRUCTOR_INSPECT_APPLICATION_IMAGES_TOOL_ID,
             )
-            if principal.authenticated and "instructor" in principal.roles
+            if principal.authenticated and {"instructor", "student"}.intersection(principal.roles)
             else ()
         )
         course_member_project_tools = (

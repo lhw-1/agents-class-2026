@@ -90,6 +90,13 @@ normally belongs in protected production backups. See
 [docs/COURSE_RESOURCES.md](docs/COURSE_RESOURCES.md) for resource manifests, automatic
 indexing, uploads, and application-storage operations.
 
+Students can use the application-review tools for accepted applicants explicitly shared by
+UUID in the private `APPLICANT_DATA_PATH/student-access.json` registry. On server startup, a private
+`APPLICANT_DATA_PATH/accepted-applicants.json` roster is resolved against existing applications
+and frozen to UUIDs. Install this file directly on the server; it is ignored by Git.
+Without a local roster or an existing UUID allowlist, student application access stays closed.
+Missing or ambiguous matches stay blocked; existing access registries are preserved. See [docs/STORAGE.md](docs/STORAGE.md) for provisioning.
+
 Role-scoped course resources live under `COURSE_DATA_PATH` (default `data/`): student
 resources are available to logged-in students and instructors, while instructor resources
 are available only to instructors. Their contents are ignored by Git and are never added to

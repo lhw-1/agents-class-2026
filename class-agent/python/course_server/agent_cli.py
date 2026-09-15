@@ -42,6 +42,8 @@ from course_server.agent import (
 )
 from course_server.agent.capabilities import ExecutableTool
 from course_server.agent.store import ConversationStore
+from course_server.application_access import ApplicationAccessPolicy
+from course_server.application_roster import initialize_student_application_access
 from course_server.auth import AuthenticationService
 from course_server.auth.store import AuthStore
 from course_server.browser import (
@@ -157,6 +159,9 @@ def build_runtime(
             excluded_repositories=settings.github_excluded_repositories,
             roster_cache_ttl_seconds=settings.github_roster_cache_ttl_seconds,
         )
+    application_access = ApplicationAccessPolicy(
+        settings.applicant_data_path / "student-access.json"
+    )
     executable_tools: list[ExecutableTool] = [
         CourseReadSyllabusTool(course_resources),
         CourseReadPublicFileTool(course_resources),
@@ -169,8 +174,8 @@ def build_runtime(
         CourseSearchTool(course_resources),
         ReadTemporaryUploadTool(upload_store),
         CourseSubmitApplicationTool(applicant_store, upload_store),
-        InstructorListApplicationsTool(applicant_store),
-        InstructorReadApplicationTool(applicant_store),
+        InstructorListApplicationsTool(applicant_store, application_access),
+        InstructorReadApplicationTool(applicant_store, application_access),
         InstructorInspectApplicationImagesTool(
             applicant_store,
             lambda photos, prompt: inspect_private_images_with_openai(
@@ -179,6 +184,7 @@ def build_runtime(
                 model_id=settings.model_id,
                 api_key=settings.model_api_key.get_secret_value(),
             ),
+            application_access,
         ),
         PublicWebSearchTool(
             BraveWebSearchClient(
@@ -258,6 +264,8 @@ async def _run_postgres_turn(
     await pool.open()
     await pool.wait()
     try:
+        applicant_store = FileApplicantStore(settings.applicant_data_path)
+        await initialize_student_application_access(applicant_store, settings.applicant_data_path)
         course_resources = PublishedFaqResourceCatalog(
             FileResourceProvider.from_registry(protected_data_path=settings.course_data_path),
             LocalFaqKnowledgeStore(settings.published_faq_path),
@@ -265,7 +273,9 @@ async def _run_postgres_turn(
         skills = SkillCatalog.from_registry(settings.skills_path)
         return await run_cli_turn(
             text,
-            runtime=build_runtime(settings, resources=course_resources, skills=skills),
+            runtime=build_runtime(
+                settings, resources=course_resources, skills=skills, applicants=applicant_store
+            ),
             auth_store=PostgresAuthStore(pool),
             conversation_store=PostgresConversationStore(pool),
             capability_policy=CourseCapabilityPolicy(

@@ -67,7 +67,8 @@ an MCP server is intentionally deferred.
 
 Authorization happens before smolagents receives tools. `CourseCapabilityPolicy` grants
 public resources to everyone, student resources to students and instructors, and instructor
-resources plus application-review tools only to instructors; `ToolCatalog` fails closed if
+resources only to instructors, and application-review tools to instructors and students
+(students are restricted to explicitly shared application UUIDs); `ToolCatalog` fails closed if
 trusted context names an unregistered tool. Read and search tools independently constrain
 work to authorized resource URIs during execution. Model-controlled input cannot select a
 filesystem path or applicant directory. The schedule tool identifies its source as
@@ -91,14 +92,15 @@ same principal during execution and confine reference reads to registered files 
 skill directory. Full skill and reference contents are returned only to the current model
 run; durable events keep a generic completion summary.
 
-The instructor-only `instructor.inspect_application_images` tool resolves one to four
+The role-scoped `instructor.inspect_application_images` tool resolves one to four
 server-issued application UUIDs inside the private applicant store and submits their validated
 photo bytes to the configured multimodal model only for an explicit visual request. Provider
 storage is disabled, tool arguments are redacted from events, and canonical history receives
 only resource provenance and a generic completion summary. The adapter prohibits identity,
 sensitive-trait, personality, emotion, and admission-suitability inference from appearance.
 Each inspected photo also receives an opaque `applicant://{application_id}/photo` reference.
-The workspace accepts only references issued by that tool in the current instructor turn, and
+The workspace accepts only references issued by that tool in the current authorized instructor
+or student turn, and
 the web client resolves them through the authenticated, no-store application-photo endpoint.
 This lets the agent build a real private gallery without inventing filenames or making the
 applicant directory web-accessible.
