@@ -66,6 +66,16 @@ filesystem migration; any staff-side reader must branch on `schema_version` rath
 reinterpret the former combined fields.
 
 Authenticated instructors receive read-only tools to list and read all applications.
+Both `instructor.list_applications` and `instructor.read_application` accept an optional
+boolean `accepted_only` (default false). With true, instructors use the same private UUID
+allowlist as students. Accepted-only reads reject IDs outside that allowlist before reading
+any record. Students remain restricted regardless of the flag. Missing or empty allowlists
+produce empty accepted-only listings; malformed allowlists deny the filtered operation.
+Unfiltered instructor access continues to work even if the allowlist is unavailable.
+The list response remains an array; its event summary distinguishes accepted-only results.
+This optional argument is additive: existing calls and persisted application schemas remain
+valid, with no core contract version change or migration required.
+
 Authenticated students receive the same three `instructor.*` tool IDs for compatibility,
 but platform code restricts their access to explicitly shared accepted application UUIDs.
 Anonymous, TA, and admin principals cannot use these tools. Authorization is checked before

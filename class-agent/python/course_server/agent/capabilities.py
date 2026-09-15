@@ -2291,18 +2291,35 @@ def _require_instructor(principal: PrincipalContext) -> None:
         raise PermissionError("Instructor access is required.")
 
 
+def _application_accepted_only(arguments: Mapping[str, JsonValue]) -> bool:
+    value = arguments.get("accepted_only", False)
+    if not isinstance(value, bool):
+        raise ToolValidationError("accepted_only must be a boolean.")
+    return value
+
+
 class InstructorListApplicationsTool:
     """List private applicant records for an authenticated instructor."""
 
     id = INSTRUCTOR_LIST_APPLICATIONS_TOOL_ID
     description = (
         "List submitted course applications available to this login: all for instructors, "
-        "only shared accepted applicants for students. "
+        "only shared accepted applicants for students. Set accepted_only=true when asked about "
+        "accepted/admitted students, to avoid listing the entire applicant pool. "
         "Returns application IDs and concise applicant metadata, never filesystem paths."
     )
     input_schema: ClassVar[dict[str, JsonValue]] = {
         "type": "object",
-        "properties": {},
+        "properties": {
+            "accepted_only": {
+                "type": "boolean",
+                "default": False,
+                "description": (
+                    "Only accepted/admitted applicants in the private student access allowlist. "
+                    "Use true for accepted-cohort analysis. Students are always restricted to it."
+                ),
+            }
+        },
         "additionalProperties": False,
     }
 
@@ -2317,9 +2334,9 @@ class InstructorListApplicationsTool:
         arguments: Mapping[str, JsonValue],
         context: ToolExecutionContext,
     ) -> ToolExecutionResult:
-        if arguments:
-            raise ValueError("instructor.list_applications does not accept arguments")
-        scope = self._access.scope(context.principal)
+        _reject_unknown_arguments(arguments, frozenset({"accepted_only"}))
+        accepted_only = _application_accepted_only(arguments)
+        scope = self._access.scope(context.principal, accepted_only=accepted_only)
         if scope is None:
             applications = await self._applicants.list_applications()
         else:
@@ -2348,7 +2365,11 @@ class InstructorListApplicationsTool:
                 )
         return ToolExecutionResult(
             content=[application.model_dump(mode="json") for application in applications],
-            summary=f"Listed {len(applications)} private course applications.",
+            summary=(
+                f"Listed {len(applications)} accepted course applications."
+                if scope is not None
+                else f"Listed {len(applications)} private course applications."
+            ),
             storage_policy="server_summary",
         )
 
@@ -2363,16 +2384,26 @@ class InstructorReadApplicationTool:
         "only) by the "
         "application ID returned from instructor.list_applications. The representative photo "
         "is reported as protected metadata. If the user explicitly asks about visible "
-        "image content, use instructor.inspect_application_images with the application ID."
+        "image content, use instructor.inspect_application_images with the application ID. "
+        "For accepted-cohort analysis, set accepted_only=true and copy the UUID exactly from "
+        "the accepted-only listing; unaccepted IDs will be rejected."
     )
     input_schema: ClassVar[dict[str, JsonValue]] = {
         "type": "object",
         "properties": {
+            "accepted_only": {
+                "type": "boolean",
+                "default": False,
+                "description": (
+                    "Only accepted/admitted applicants in the private student access allowlist. "
+                    "Use true for accepted-cohort analysis. Students are always restricted to it."
+                ),
+            },
             "application_id": {
                 "type": "string",
                 "format": "uuid",
                 "description": "Server-issued application UUID.",
-            }
+            },
         },
         "required": ["application_id"],
         "additionalProperties": False,
@@ -2390,7 +2421,8 @@ class InstructorReadApplicationTool:
         context: ToolExecutionContext,
     ) -> ToolExecutionResult:
         self._access.scope(context.principal)
-        _reject_unknown_arguments(arguments, frozenset({"application_id"}))
+        _reject_unknown_arguments(arguments, frozenset({"application_id", "accepted_only"}))
+        accepted_only = _application_accepted_only(arguments)
         try:
             application_id = UUID(
                 _required_text_argument(arguments, "application_id", max_length=36)
@@ -2398,7 +2430,7 @@ class InstructorReadApplicationTool:
         except ValueError as error:
             raise ToolValidationError("application_id must be a UUID.") from error
         try:
-            self._access.require(context.principal, application_id)
+            self._access.require(context.principal, application_id, accepted_only=accepted_only)
             application = await self._applicants.read_application(application_id)
             if "instructor" not in context.principal.roles:
                 # Share submitted content, never internal identity/upload/storage metadata.

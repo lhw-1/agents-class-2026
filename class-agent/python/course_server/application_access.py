@@ -15,11 +15,15 @@ class ApplicationAccessPolicy:
     def __init__(self, path: Path | None = None) -> None:
         self.path = path
 
-    def scope(self, principal: PrincipalContext) -> frozenset[UUID] | None:
-        if principal.authenticated and "instructor" in principal.roles:
-            return None
-        if not principal.authenticated or "student" not in principal.roles:
+    def scope(
+        self, principal: PrincipalContext, *, accepted_only: bool = False
+    ) -> frozenset[UUID] | None:
+        if not principal.authenticated or not {"student", "instructor"}.intersection(
+            principal.roles
+        ):
             raise PermissionError("Instructor access or student access is required.")
+        if "instructor" in principal.roles and not accepted_only:
+            return None
         if self.path is None or not self.path.exists():
             return frozenset()
         try:
@@ -36,7 +40,9 @@ class ApplicationAccessPolicy:
         except (OSError, UnicodeError, ValueError, TypeError) as error:
             raise PermissionError("Student application access is unavailable.") from error
 
-    def require(self, principal: PrincipalContext, application_id: UUID) -> None:
-        scope = self.scope(principal)
+    def require(
+        self, principal: PrincipalContext, application_id: UUID, *, accepted_only: bool = False
+    ) -> None:
+        scope = self.scope(principal, accepted_only=accepted_only)
         if scope is not None and application_id not in scope:
             raise PermissionError("Application is not available to this account.")
